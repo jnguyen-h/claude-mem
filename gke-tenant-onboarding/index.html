@@ -1,0 +1,985 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tenant Onboarding: GKE Platform</title>
+<meta name="description" content="Step-by-step onboarding guide for tenant teams bringing an application or service onto the shared GKE platform." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F3F5F4;
+    --bg-elevated:#FFFFFF;
+    --ink:#12181B;
+    --ink-soft:#4B5D63;
+    --ink-faint:#7C8B90;
+    --line:#D8DEE1;
+    --accent:#1B6FA8;
+    --accent-ink:#FFFFFF;
+    --accent-soft:#E4F0F7;
+    --warn:#946015;
+    --warn-soft:#FBECD9;
+    --danger:#B3261E;
+    --danger-soft:#FBE9E7;
+    --success:#1E7B4D;
+    --success-soft:#E4F3EA;
+    --code-bg:#10171C;
+    --code-ink:#D7E1E6;
+    --code-faint:#7E9299;
+    --code-accent:#7FD1E0;
+    --shadow: 0 1px 2px rgba(18,24,27,0.06), 0 6px 20px rgba(18,24,27,0.05);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0E1416;
+      --bg-elevated:#151D21;
+      --ink:#E7EEF0;
+      --ink-soft:#9AA9AE;
+      --ink-faint:#6B7B80;
+      --line:#263136;
+      --accent:#5BB2E8;
+      --accent-ink:#08202B;
+      --accent-soft:#16323F;
+      --warn:#E3A552;
+      --warn-soft:#2E2312;
+      --danger:#E2685E;
+      --danger-soft:#301716;
+      --success:#6FCB9A;
+      --success-soft:#122A20;
+      --code-bg:#0A0F12;
+      --code-ink:#D7E1E6;
+      --code-faint:#5E7075;
+      --code-accent:#7FD1E0;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0E1416;
+    --bg-elevated:#151D21;
+    --ink:#E7EEF0;
+    --ink-soft:#9AA9AE;
+    --ink-faint:#6B7B80;
+    --line:#263136;
+    --accent:#5BB2E8;
+    --accent-ink:#08202B;
+    --accent-soft:#16323F;
+    --warn:#E3A552;
+    --warn-soft:#2E2312;
+    --danger:#E2685E;
+    --danger-soft:#301716;
+    --success:#6FCB9A;
+    --success-soft:#122A20;
+    --code-bg:#0A0F12;
+    --code-ink:#D7E1E6;
+    --code-faint:#5E7075;
+    --code-accent:#7FD1E0;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+  }
+
+  *{box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:"IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    line-height:1.55;
+  }
+  h1,h2,h3,h4,.mono{
+    font-family:"IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  h1,h2,h3,h4{ text-wrap:balance; margin:0; }
+  a{ color:var(--accent); }
+  code{ font-family:"IBM Plex Mono", ui-monospace, monospace; }
+
+  /* ---------- shell layout ---------- */
+  .shell{
+    display:grid;
+    grid-template-columns: 272px minmax(0,1fr);
+    min-height:100vh;
+  }
+  @media (max-width: 900px){
+    .shell{ grid-template-columns: 1fr; }
+  }
+
+  /* ---------- sidebar ---------- */
+  .sidebar{
+    border-right:1px solid var(--line);
+    background:var(--bg-elevated);
+    position:sticky;
+    top:0;
+    align-self:start;
+    height:100vh;
+    overflow-y:auto;
+    padding:20px 14px 28px;
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+  }
+  @media (max-width:900px){
+    .sidebar{ position:static; height:auto; border-right:none; border-bottom:1px solid var(--line); }
+  }
+  .brand{
+    display:flex; flex-direction:column; gap:4px; padding:6px 10px 10px;
+  }
+  .brand .eyebrow{
+    font-size:11px; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--ink-faint); font-weight:600;
+  }
+  .brand .name{ font-size:16px; font-weight:600; }
+
+  .progress-block{
+    padding:12px; border:1px solid var(--line); border-radius:10px; background:var(--bg);
+    display:flex; flex-direction:column; gap:8px;
+  }
+  .progress-row{ display:flex; align-items:baseline; justify-content:space-between; }
+  .progress-row .label{ font-size:12px; color:var(--ink-soft); }
+  .progress-row .value{ font-family:"IBM Plex Mono",monospace; font-size:13px; font-variant-numeric:tabular-nums; font-weight:600; }
+  .bar-track{ height:7px; border-radius:99px; background:var(--line); overflow:hidden; }
+  .bar-fill{ height:100%; border-radius:99px; background:var(--accent); width:0%; transition:width .35s ease; }
+
+  .navlist{ list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:2px; }
+  .navlist a{
+    display:flex; align-items:center; gap:10px;
+    padding:8px 10px; border-radius:8px;
+    color:var(--ink-soft); text-decoration:none; font-size:13.5px;
+    border:1px solid transparent;
+  }
+  .navlist a:hover{ background:var(--accent-soft); color:var(--ink); }
+  .navlist a.active{ background:var(--accent-soft); color:var(--accent); border-color:var(--accent); font-weight:600; }
+  .navlist .idx{
+    font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--ink-faint);
+    width:20px; flex:none;
+  }
+  .navlist a.active .idx{ color:var(--accent); }
+  .navlist .check{
+    margin-left:auto; width:16px; height:16px; border-radius:50%;
+    border:1.5px solid var(--line); flex:none;
+  }
+  .navlist .check.done{ background:var(--success); border-color:var(--success); position:relative; }
+  .navlist .check.done::after{
+    content:""; position:absolute; left:4px; top:1px; width:4px; height:8px;
+    border-right:1.5px solid var(--bg-elevated); border-bottom:1.5px solid var(--bg-elevated);
+    transform:rotate(40deg);
+  }
+
+  .sidebar-foot{ margin-top:auto; padding:10px; font-size:11.5px; color:var(--ink-faint); }
+
+  /* ---------- main ---------- */
+  main{ min-width:0; }
+  .topbar{
+    position:sticky; top:0; z-index:5;
+    background:color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter:blur(6px);
+    border-bottom:1px solid var(--line);
+    padding:14px 32px;
+    display:none;
+  }
+  @media (max-width:900px){ .topbar{ display:block; } .sidebar{ display:none; } }
+
+  .header{
+    padding:40px 40px 28px;
+    border-bottom:1px solid var(--line);
+  }
+  .header .kicker{
+    font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); font-weight:600;
+    margin-bottom:10px;
+  }
+  .header h1{ font-size:30px; font-weight:600; max-width:22ch; }
+  .header p{ max-width:62ch; color:var(--ink-soft); font-size:15px; margin-top:12px; }
+
+  .content{ padding:8px 40px 80px; max-width:860px; }
+  @media (max-width:640px){ .header{padding:28px 20px 20px;} .content{padding:8px 20px 60px;} }
+
+  section.step{
+    padding:40px 0; border-bottom:1px solid var(--line);
+    scroll-margin-top:24px;
+  }
+  section.step:last-of-type{ border-bottom:none; }
+
+  .step-head{ display:flex; align-items:baseline; gap:12px; margin-bottom:14px; }
+  .step-head .num{
+    font-family:"IBM Plex Mono",monospace; color:var(--accent); font-weight:600; font-size:14px;
+  }
+  .step-head h2{ font-size:22px; font-weight:600; }
+  .step-sub{ color:var(--ink-soft); font-size:15px; max-width:65ch; margin:-6px 0 20px; }
+
+  h3{ font-size:16px; font-weight:600; margin:28px 0 10px; }
+  p{ margin:0 0 14px; max-width:70ch; }
+  ul,ol{ margin:0 0 16px; padding-left:22px; }
+  li{ margin-bottom:6px; max-width:66ch; }
+
+  table{ border-collapse:collapse; width:100%; margin:16px 0 20px; font-size:14px; }
+  th,td{ text-align:left; padding:9px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th{ font-family:"IBM Plex Mono",monospace; font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-faint); font-weight:600; }
+  td code{ font-size:12.5px; }
+
+  .callout{
+    display:flex; gap:12px; padding:14px 16px; border-radius:10px; margin:18px 0;
+    border:1px solid var(--line); font-size:14px;
+  }
+  .callout .tag{ font-family:"IBM Plex Mono",monospace; font-size:11px; font-weight:700; letter-spacing:.05em; flex:none; padding-top:1px; }
+  .callout.info{ background:var(--accent-soft); border-color:transparent; }
+  .callout.info .tag{ color:var(--accent); }
+  .callout.warn{ background:var(--warn-soft); border-color:transparent; }
+  .callout.warn .tag{ color:var(--warn); }
+  .callout.danger{ background:var(--danger-soft); border-color:transparent; }
+  .callout.danger .tag{ color:var(--danger); }
+
+  .codeblock{
+    position:relative; background:var(--code-bg); color:var(--code-ink);
+    border-radius:10px; margin:16px 0; box-shadow:var(--shadow);
+    overflow:hidden;
+  }
+  .codeblock .cb-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:8px 12px; border-bottom:1px solid rgba(255,255,255,0.08);
+    font-family:"IBM Plex Mono",monospace; font-size:11px; color:var(--code-faint);
+  }
+  .codeblock pre{
+    margin:0; padding:14px 16px; overflow-x:auto; font-size:13px; line-height:1.6;
+  }
+  .codeblock code{ font-family:"IBM Plex Mono",monospace; white-space:pre; }
+  .copy-btn{
+    background:transparent; border:1px solid rgba(255,255,255,0.18); color:var(--code-ink);
+    font-family:"IBM Plex Mono",monospace; font-size:11px; padding:4px 9px; border-radius:6px;
+    cursor:pointer;
+  }
+  .copy-btn:hover{ border-color:var(--code-accent); color:var(--code-accent); }
+  .copy-btn:focus-visible, a:focus-visible, .navlist a:focus-visible, .task input:focus-visible{
+    outline:2px solid var(--accent); outline-offset:2px;
+  }
+  .prompt{ color:var(--code-accent); }
+
+  .checklist{
+    display:flex; flex-direction:column; gap:0; border:1px solid var(--line);
+    border-radius:10px; overflow:hidden; margin:18px 0; background:var(--bg-elevated);
+  }
+  .task{
+    display:flex; align-items:flex-start; gap:11px; padding:12px 14px;
+    border-bottom:1px solid var(--line); font-size:14px;
+  }
+  .task:last-child{ border-bottom:none; }
+  .task input[type=checkbox]{
+    margin-top:3px; width:16px; height:16px; accent-color:var(--success); flex:none;
+  }
+  .task label{ cursor:pointer; }
+  .task .task-note{ display:block; color:var(--ink-faint); font-size:12.5px; margin-top:2px; }
+  .task.checked label{ color:var(--ink-faint); text-decoration:line-through; }
+
+  .kv{ display:grid; grid-template-columns: max-content 1fr; gap:6px 18px; font-size:14px; margin:16px 0; }
+  .kv dt{ font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--ink-faint); padding-top:2px; }
+  .kv dd{ margin:0; }
+
+  .pill{
+    display:inline-flex; align-items:center; gap:6px; font-family:"IBM Plex Mono",monospace;
+    font-size:11px; padding:3px 9px; border-radius:99px; background:var(--accent-soft); color:var(--accent);
+    font-weight:600; letter-spacing:.02em;
+  }
+
+  .diagram{
+    display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin:18px 0 22px;
+    font-family:"IBM Plex Mono",monospace; font-size:12.5px;
+  }
+  .diagram .box{
+    border:1px solid var(--line); background:var(--bg-elevated); border-radius:8px;
+    padding:10px 12px; box-shadow:var(--shadow); min-width:120px; text-align:center;
+  }
+  .diagram .box.you{ border-color:var(--accent); color:var(--accent); }
+  .diagram .arrow{ color:var(--ink-faint); font-size:16px; }
+  .diagram .stack{ display:flex; flex-direction:column; gap:6px; }
+
+  .grid-2{ display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:18px 0; }
+  @media (max-width:640px){ .grid-2{ grid-template-columns:1fr; } }
+  .mini-card{ border:1px solid var(--line); border-radius:10px; padding:14px; background:var(--bg-elevated); }
+  .mini-card h4{ font-size:13px; margin-bottom:6px; }
+  .mini-card p{ font-size:13px; color:var(--ink-soft); margin:0; }
+
+  footer.page-end{
+    padding:36px 40px 60px; color:var(--ink-faint); font-size:13px;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .bar-fill{ transition:none; }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <span class="eyebrow">Platform Engineering</span>
+      <span class="name">Tenant Onboarding · GKE</span>
+    </div>
+
+    <div class="progress-block">
+      <div class="progress-row">
+        <span class="label">Onboarding progress</span>
+        <span class="value" id="progress-value">0%</span>
+      </div>
+      <div class="bar-track"><div class="bar-fill" id="progress-fill"></div></div>
+      <div class="progress-row"><span class="label" id="progress-count" style="font-size:11.5px;">0 of 0 tasks complete</span></div>
+    </div>
+
+    <ul class="navlist" id="navlist">
+      <li><a href="#welcome"><span class="idx">00</span>Welcome<span class="check" data-section="welcome"></span></a></li>
+      <li><a href="#prerequisites"><span class="idx">01</span>Prerequisites<span class="check" data-section="prerequisites"></span></a></li>
+      <li><a href="#namespace"><span class="idx">02</span>Request a namespace<span class="check" data-section="namespace"></span></a></li>
+      <li><a href="#access"><span class="idx">03</span>Authenticate &amp; access<span class="check" data-section="access"></span></a></li>
+      <li><a href="#deploy"><span class="idx">04</span>Deploy a workload<span class="check" data-section="deploy"></span></a></li>
+      <li><a href="#expose"><span class="idx">05</span>Expose the service<span class="check" data-section="expose"></span></a></li>
+      <li><a href="#cicd"><span class="idx">06</span>Wire up CI/CD<span class="check" data-section="cicd"></span></a></li>
+      <li><a href="#observability"><span class="idx">07</span>Observability<span class="check" data-section="observability"></span></a></li>
+      <li><a href="#security"><span class="idx">08</span>Security &amp; guardrails<span class="check" data-section="security"></span></a></li>
+      <li><a href="#golive"><span class="idx">09</span>Go-live checklist<span class="check" data-section="golive"></span></a></li>
+      <li><a href="#troubleshooting"><span class="idx">10</span>Troubleshooting<span class="check" data-section="troubleshooting"></span></a></li>
+      <li><a href="#support"><span class="idx">11</span>Support</a></li>
+    </ul>
+
+    <div class="sidebar-foot">
+      Progress is saved in this browser only, so it will reset on another device or a cleared cache.
+    </div>
+  </aside>
+
+  <!-- MOBILE TOPBAR -->
+  <div class="topbar">
+    <select id="mobile-nav" class="mono" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--bg-elevated);color:var(--ink);">
+      <option value="#welcome">00 · Welcome</option>
+      <option value="#prerequisites">01 · Prerequisites</option>
+      <option value="#namespace">02 · Request a namespace</option>
+      <option value="#access">03 · Authenticate &amp; access</option>
+      <option value="#deploy">04 · Deploy a workload</option>
+      <option value="#expose">05 · Expose the service</option>
+      <option value="#cicd">06 · Wire up CI/CD</option>
+      <option value="#observability">07 · Observability</option>
+      <option value="#security">08 · Security &amp; guardrails</option>
+      <option value="#golive">09 · Go-live checklist</option>
+      <option value="#troubleshooting">10 · Troubleshooting</option>
+      <option value="#support">11 · Support</option>
+    </select>
+  </div>
+
+  <main>
+    <div class="header">
+      <div class="kicker">Shared GKE Platform &middot; New Tenant Guide</div>
+      <h1>Bring your service onto the platform</h1>
+      <p>This walks a tenant team through everything between "we have an application" and "it's running in production on the shared GKE platform" &mdash; namespace request, access, your first deployment, ingress, CI/CD, observability, and the security guardrails every namespace runs under. Work through it top to bottom; each step assumes the one before it is done.</p>
+    </div>
+
+    <div class="content">
+
+      <!-- 00 WELCOME -->
+      <section class="step" id="welcome">
+        <div class="step-head"><span class="num">00</span><h2>What you're onboarding to</h2></div>
+        <p class="step-sub">One regional production cluster, shared across tenants by namespace. You own your workload; the platform team owns everything underneath it.</p>
+
+        <div class="diagram">
+          <div class="box">Internet</div>
+          <div class="arrow">&rarr;</div>
+          <div class="box">Cloud Load Balancer</div>
+          <div class="arrow">&rarr;</div>
+          <div class="box">GKE Gateway<br><span style="color:var(--ink-faint)">shared ingress</span></div>
+          <div class="arrow">&rarr;</div>
+          <div class="box you">Your namespace<br><span class="mono" style="font-size:11px;">tenant-&lt;team&gt;-&lt;env&gt;</span></div>
+        </div>
+
+        <h3>Who owns what</h3>
+        <table>
+          <thead><tr><th>Platform team</th><th>Your team</th></tr></thead>
+          <tbody>
+            <tr><td>Cluster, node pools, autoscaling, upgrades</td><td>Application code &amp; container images</td></tr>
+            <tr><td>Ingress controller, cert-manager, DNS automation</td><td>Deployment manifests &amp; resource sizing</td></tr>
+            <tr><td>Policy engine, default NetworkPolicy, quotas</td><td>Runtime secrets content &amp; rotation</td></tr>
+            <tr><td>Cluster-wide logging &amp; metrics pipeline</td><td>Service-level dashboards, alerts, on-call</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout info">
+          <span class="tag">GOOD TO KNOW</span>
+          <span>Every tenant gets one namespace per environment (<code>dev</code>, <code>staging</code>, <code>prod</code>), provisioned identically. Nothing below is a one-off &mdash; the same steps apply whether this is your first service or your tenth.</span>
+        </div>
+      </section>
+
+      <!-- 01 PREREQUISITES -->
+      <section class="step" id="prerequisites">
+        <div class="step-head"><span class="num">01</span><h2>Prerequisites</h2></div>
+        <p class="step-sub">Get access and tooling sorted before you touch the cluster.</p>
+
+        <h3>Access</h3>
+        <ul>
+          <li>A Google identity in the org's Cloud Identity domain.</li>
+          <li>Membership in your team's access group &mdash; ask your manager to add you to <code>gcp-tenant-&lt;team&gt;@company.com</code>. Group membership is what drives your namespace RBAC, so this has to land before Step 3.</li>
+          <li>Access to the internal <code>platform-tenants</code> GitHub repo (used to request and configure your namespace).</li>
+        </ul>
+
+        <h3>Local tooling</h3>
+        <div class="codeblock">
+          <div class="cb-head"><span>macOS &middot; install via Homebrew</span><button class="copy-btn" data-copy-target="cb-tools">Copy</button></div>
+          <pre><code id="cb-tools"><span class="prompt">$</span> brew install --cask google-cloud-sdk
+<span class="prompt">$</span> brew install kubectl helm k9s
+<span class="prompt">$</span> gcloud components install gke-gcloud-auth-plugin</code></pre>
+        </div>
+
+        <div class="codeblock">
+          <div class="cb-head"><span>verify everything is on PATH</span><button class="copy-btn" data-copy-target="cb-verify">Copy</button></div>
+          <pre><code id="cb-verify"><span class="prompt">$</span> gcloud version
+<span class="prompt">$</span> kubectl version --client
+<span class="prompt">$</span> helm version
+<span class="prompt">$</span> gke-gcloud-auth-plugin --version</code></pre>
+        </div>
+
+        <h3>Information to have ready</h3>
+        <dl class="kv">
+          <dt>Tenant slug</dt><dd>short, lowercase, hyphenated &mdash; e.g. <code>payments</code>. Becomes part of every namespace name.</dd>
+          <dt>Cost center</dt><dd>for billing labels attached to your namespace and resources.</dd>
+          <dt>Source repo</dt><dd>the GitHub repo your service's deployment manifests will live in.</dd>
+          <dt>Slack channel</dt><dd>where alerts for your service should be routed.</dd>
+          <dt>Environments</dt><dd>which of <code>dev</code> / <code>staging</code> / <code>prod</code> you need on day one.</dd>
+        </dl>
+
+        <div class="checklist" data-section="prerequisites">
+          <div class="task"><input type="checkbox" id="t-prereq-1"><label for="t-prereq-1">Added to the <code>gcp-tenant-&lt;team&gt;</code> access group</label></div>
+          <div class="task"><input type="checkbox" id="t-prereq-2"><label for="t-prereq-2">gcloud, kubectl, helm, and the GKE auth plugin installed and verified</label></div>
+          <div class="task"><input type="checkbox" id="t-prereq-3"><label for="t-prereq-3">Tenant slug, cost center, repo, Slack channel, and environments decided</label></div>
+        </div>
+      </section>
+
+      <!-- 02 NAMESPACE -->
+      <section class="step" id="namespace">
+        <div class="step-head"><span class="num">02</span><h2>Request a namespace</h2></div>
+        <p class="step-sub">Namespaces are provisioned by GitOps, not by ticket &mdash; you open a PR against a config file and automation does the rest.</p>
+
+        <p>Fork or branch <code>platform-tenants</code> and add a tenant file under <code>tenants/&lt;slug&gt;.hcl</code>:</p>
+
+        <div class="codeblock">
+          <div class="cb-head"><span>tenants/payments.hcl</span><button class="copy-btn" data-copy-target="cb-tenant">Copy</button></div>
+          <pre><code id="cb-tenant">tenant "payments" {
+  display_name  = "Payments Team"
+  environments  = ["dev", "staging", "prod"]
+  cost_center   = "CC-4821"
+  slack_channel = "#payments-eng"
+  repo          = "acme-org/payments-service"
+
+  quota = {
+    cpu    = "8"
+    memory = "16Gi"
+    pods   = "40"
+  }
+}</code></pre>
+        </div>
+
+        <p>Open the PR against <code>main</code>. The platform team's bot validates the schema and quota request automatically; a human only reviews if you're asking for non-default quota.</p>
+
+        <h3>What merging triggers</h3>
+        <ul>
+          <li>Namespaces created: <code>tenant-payments-dev</code>, <code>tenant-payments-staging</code>, <code>tenant-payments-prod</code></li>
+          <li>RBAC bindings for your access group, scoped to those namespaces only</li>
+          <li>A <code>ResourceQuota</code> and default-deny <code>NetworkPolicy</code> applied to each</li>
+          <li>A Workload Identity binding for your future CI service account</li>
+          <li>A default Grafana dashboard and log-based view, pre-filtered to your namespace</li>
+        </ul>
+
+        <div class="callout warn">
+          <span class="tag">TIMING</span>
+          <span>Provisioning runs on merge and typically completes in 5&ndash;10 minutes. RBAC propagation to <code>kubectl</code> can lag a minute or two behind that &mdash; if Step 3 throws a permissions error immediately after merge, wait and retry before assuming something's wrong.</span>
+        </div>
+
+        <div class="checklist" data-section="namespace">
+          <div class="task"><input type="checkbox" id="t-ns-1"><label for="t-ns-1">Tenant file added to <code>platform-tenants</code> and PR opened</label></div>
+          <div class="task"><input type="checkbox" id="t-ns-2"><label for="t-ns-2">PR merged and automation run completed</label></div>
+        </div>
+      </section>
+
+      <!-- 03 ACCESS -->
+      <section class="step" id="access">
+        <div class="step-head"><span class="num">03</span><h2>Authenticate &amp; configure access</h2></div>
+        <p class="step-sub">Point kubectl at the shared cluster and confirm your namespace-scoped permissions.</p>
+
+        <div class="codeblock">
+          <div class="cb-head"><span>authenticate and fetch cluster credentials</span><button class="copy-btn" data-copy-target="cb-auth">Copy</button></div>
+          <pre><code id="cb-auth"><span class="prompt">$</span> gcloud auth login
+<span class="prompt">$</span> gcloud config set project acme-platform-prod
+<span class="prompt">$</span> gcloud container clusters get-credentials gke-shared-prod \
+    --region us-central1 --project acme-platform-prod</code></pre>
+        </div>
+
+        <div class="codeblock">
+          <div class="cb-head"><span>confirm your context and permissions</span><button class="copy-btn" data-copy-target="cb-check">Copy</button></div>
+          <pre><code id="cb-check"><span class="prompt">$</span> kubectl config current-context
+gke_acme-platform-prod_us-central1_gke-shared-prod
+
+<span class="prompt">$</span> kubectl auth can-i create deployments -n tenant-payments-dev
+yes
+
+<span class="prompt">$</span> kubectl get namespace tenant-payments-dev
+NAME                  STATUS   AGE
+tenant-payments-dev   Active   4m</code></pre>
+        </div>
+
+        <h3>Two roles per namespace</h3>
+        <table>
+          <thead><tr><th>Role</th><th>Bound to</th><th>Can do</th></tr></thead>
+          <tbody>
+            <tr><td><code>tenant-admin</code></td><td>your access group</td><td>Full read/write in your namespaces, including secrets and RBAC review</td></tr>
+            <tr><td><code>tenant-deploy</code></td><td>CI service account (Workload Identity)</td><td>Create/update workloads and config; cannot read secrets or modify RBAC</td></tr>
+          </tbody>
+        </table>
+
+        <div class="callout danger">
+          <span class="tag">SCOPE</span>
+          <span>Both roles are namespace-scoped. If <code>kubectl</code> ever reports a resource in another tenant's namespace, that's the RBAC working as intended, not a bug to route around.</span>
+        </div>
+
+        <div class="checklist" data-section="access">
+          <div class="task"><input type="checkbox" id="t-access-1"><label for="t-access-1">Cluster credentials fetched, correct context selected</label></div>
+          <div class="task"><input type="checkbox" id="t-access-2"><label for="t-access-2"><code>kubectl auth can-i</code> confirms write access in your dev namespace</label></div>
+        </div>
+      </section>
+
+      <!-- 04 DEPLOY -->
+      <section class="step" id="deploy">
+        <div class="step-head"><span class="num">04</span><h2>Deploy your first workload</h2></div>
+        <p class="step-sub">Same manifest shape works in every environment &mdash; only the namespace and replica count change.</p>
+
+        <p>Required on every workload: <code>team</code> and <code>cost-center</code> labels, and explicit CPU/memory <code>requests</code> and <code>limits</code>. The admission webhook rejects anything missing them before it's scheduled.</p>
+
+        <div class="codeblock">
+          <div class="cb-head"><span>deployment.yaml</span><button class="copy-btn" data-copy-target="cb-deploy">Copy</button></div>
+          <pre><code id="cb-deploy">apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payments-api
+  namespace: tenant-payments-dev
+  labels:
+    app: payments-api
+    team: payments
+    cost-center: CC-4821
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: payments-api }
+  template:
+    metadata:
+      labels: { app: payments-api, team: payments }
+    spec:
+      containers:
+        - name: payments-api
+          image: us-central1-docker.pkg.dev/acme-platform-prod/payments/api:1.4.2
+          ports: [{ containerPort: 8080 }]
+          resources:
+            requests: { cpu: "250m", memory: "256Mi" }
+            limits:   { cpu: "500m", memory: "512Mi" }
+          readinessProbe:
+            httpGet: { path: /healthz, port: 8080 }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payments-api
+  namespace: tenant-payments-dev
+spec:
+  selector: { app: payments-api }
+  ports: [{ port: 80, targetPort: 8080 }]</code></pre>
+        </div>
+
+        <div class="codeblock">
+          <div class="cb-head"><span>apply and watch it come up</span><button class="copy-btn" data-copy-target="cb-apply">Copy</button></div>
+          <pre><code id="cb-apply"><span class="prompt">$</span> kubectl apply -f deployment.yaml
+<span class="prompt">$</span> kubectl get pods -n tenant-payments-dev -w</code></pre>
+        </div>
+
+        <div class="callout info">
+          <span class="tag">BEFORE PROD</span>
+          <span>Production namespaces additionally require a <code>PodDisruptionBudget</code> and at least 2 replicas &mdash; the same manifest with <code>minAvailable: 1</code> added covers it.</span>
+        </div>
+
+        <div class="checklist" data-section="deploy">
+          <div class="task"><input type="checkbox" id="t-deploy-1"><label for="t-deploy-1">Deployment and Service applied to <code>dev</code></label></div>
+          <div class="task"><input type="checkbox" id="t-deploy-2"><label for="t-deploy-2">Pods reach <code>Running</code> and pass the readiness probe</label></div>
+        </div>
+      </section>
+
+      <!-- 05 EXPOSE -->
+      <section class="step" id="expose">
+        <div class="step-head"><span class="num">05</span><h2>Expose the service</h2></div>
+        <p class="step-sub">One shared Gateway handles TLS and DNS for every tenant &mdash; you declare a route, not a load balancer.</p>
+
+        <div class="codeblock">
+          <div class="cb-head"><span>httproute.yaml</span><button class="copy-btn" data-copy-target="cb-route">Copy</button></div>
+          <pre><code id="cb-route">apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: payments-api
+  namespace: tenant-payments-dev
+spec:
+  parentRefs:
+    - name: shared-gateway
+      namespace: platform-ingress
+  hostnames: ["payments-api.dev.internal.acme.com"]
+  rules:
+    - backendRefs:
+        - name: payments-api
+          port: 80</code></pre>
+        </div>
+
+        <ul>
+          <li><strong>TLS</strong> is issued automatically by cert-manager once the hostname resolves &mdash; no certificate to manage yourself.</li>
+          <li><strong>DNS</strong> is created by external-dns watching the <code>HTTPRoute</code>; expect the CNAME within a few minutes of applying it.</li>
+          <li>Hostnames must live under your environment's reserved zone (<code>*.dev.internal.acme.com</code>, <code>*.staging.internal.acme.com</code>, <code>*.acme.com</code> for prod, subject to review).</li>
+        </ul>
+
+        <div class="checklist" data-section="expose">
+          <div class="task"><input type="checkbox" id="t-expose-1"><label for="t-expose-1"><code>HTTPRoute</code> applied and hostname resolves</label></div>
+          <div class="task"><input type="checkbox" id="t-expose-2"><label for="t-expose-2">TLS certificate issued (check with <code>kubectl get certificate -n tenant-payments-dev</code>)</label></div>
+        </div>
+      </section>
+
+      <!-- 06 CICD -->
+      <section class="step" id="cicd">
+        <div class="step-head"><span class="num">06</span><h2>Wire up CI/CD</h2></div>
+        <p class="step-sub">Keyless deploys from GitHub Actions via Workload Identity Federation &mdash; no service account keys to store or rotate.</p>
+
+        <div class="codeblock">
+          <div class="cb-head"><span>.github/workflows/deploy.yml</span><button class="copy-btn" data-copy-target="cb-ci">Copy</button></div>
+          <pre><code id="cb-ci">- uses: google-github-actions/auth@v2
+  with:
+    workload_identity_provider: projects/123456789/locations/global/workloadIdentityPools/tenant-pool/providers/github
+    service_account: payments-deployer@acme-platform-prod.iam.gserviceaccount.com
+
+- uses: google-github-actions/get-gke-credentials@v2
+  with:
+    cluster_name: gke-shared-prod
+    location: us-central1
+
+- run: kubectl set image deployment/payments-api \
+    payments-api=us-central1-docker.pkg.dev/acme-platform-prod/payments/api:${{ github.sha }} \
+    -n tenant-payments-dev</code></pre>
+        </div>
+
+        <p>The <code>payments-deployer</code> service account was created for you in Step 2, bound to the <code>tenant-deploy</code> role in your namespaces only. Promotion between environments is the same workflow gated on branch or tag &mdash; e.g. merges to <code>main</code> deploy to <code>staging</code>, a release tag deploys to <code>prod</code>.</p>
+
+        <div class="callout warn">
+          <span class="tag">IMAGES</span>
+          <span>Images must be pushed to your tenant's path in Artifact Registry (<code>.../acme-platform-prod/payments/...</code>). Production deploys additionally require a Binary Authorization attestation, produced automatically by the shared "build" workflow if you're using it.</span>
+        </div>
+
+        <div class="checklist" data-section="cicd">
+          <div class="task"><input type="checkbox" id="t-cicd-1"><label for="t-cicd-1">Workload Identity Federation provider confirmed with platform team</label></div>
+          <div class="task"><input type="checkbox" id="t-cicd-2"><label for="t-cicd-2">Pipeline deploys to <code>dev</code> on a test commit</label></div>
+        </div>
+      </section>
+
+      <!-- 07 OBSERVABILITY -->
+      <section class="step" id="observability">
+        <div class="step-head"><span class="num">07</span><h2>Observability</h2></div>
+        <p class="step-sub">Logs and a dashboard exist before you deploy anything; alerts are the one thing you have to add yourself.</p>
+
+        <div class="grid-2">
+          <div class="mini-card">
+            <h4>Logs</h4>
+            <p>Shipped to Cloud Logging automatically, pre-filtered by namespace. Saved view: <code>logs.internal.acme.com/tenant-payments</code>.</p>
+          </div>
+          <div class="mini-card">
+            <h4>Metrics</h4>
+            <p>Add <code>prometheus.io/scrape: "true"</code> and a <code>/metrics</code> port to your pod spec, or ship a <code>PodMonitor</code> alongside your manifests.</p>
+          </div>
+          <div class="mini-card">
+            <h4>Dashboards</h4>
+            <p>A default Grafana dashboard is provisioned per tenant at <code>grafana.internal.acme.com/d/tenant-payments</code>, seeded from your namespace's standard metrics.</p>
+          </div>
+          <div class="mini-card">
+            <h4>Alerts</h4>
+            <p>Not automatic. Ship a <code>PrometheusRule</code> in your repo; Alertmanager routes by the <code>team</code> label straight to the Slack channel you set in Step 2.</p>
+          </div>
+        </div>
+
+        <div class="codeblock">
+          <div class="cb-head"><span>alerts.yaml</span><button class="copy-btn" data-copy-target="cb-alert">Copy</button></div>
+          <pre><code id="cb-alert">apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: payments-api-alerts
+  namespace: tenant-payments-prod
+  labels: { team: payments }
+spec:
+  groups:
+    - name: payments-api
+      rules:
+        - alert: PaymentsApiHighErrorRate
+          expr: sum(rate(http_requests_total{job="payments-api",code=~"5.."}[5m])) > 0.05
+          for: 10m
+          labels: { severity: warning, team: payments }
+          annotations:
+            summary: "payments-api 5xx rate above 5% for 10m"</code></pre>
+        </div>
+
+        <div class="checklist" data-section="observability">
+          <div class="task"><input type="checkbox" id="t-obs-1"><label for="t-obs-1">Namespace dashboard bookmarked and reviewed</label></div>
+          <div class="task"><input type="checkbox" id="t-obs-2"><label for="t-obs-2">At least one alert routes to your Slack channel and has been test-fired</label></div>
+        </div>
+      </section>
+
+      <!-- 08 SECURITY -->
+      <section class="step" id="security">
+        <div class="step-head"><span class="num">08</span><h2>Security &amp; guardrails</h2></div>
+        <p class="step-sub">These are enforced at the namespace level &mdash; the deployment fails closed rather than warns.</p>
+
+        <ul>
+          <li><strong>Pod Security Standards: <code>restricted</code></strong> on every tenant namespace. No root, no privilege escalation, no host mounts. Set a non-root <code>securityContext</code> or the pod is rejected at admission.</li>
+          <li><strong>Default-deny <code>NetworkPolicy</code></strong> on ingress. Traffic between namespaces &mdash; including from another one of your own environments &mdash; needs an explicit <code>NetworkPolicy</code> allowing it.</li>
+          <li><strong>Secrets never live in manifests.</strong> Store them in Secret Manager and mount via the CSI driver:</li>
+        </ul>
+
+        <div class="codeblock">
+          <div class="cb-head"><span>secretproviderclass.yaml</span><button class="copy-btn" data-copy-target="cb-secret">Copy</button></div>
+          <pre><code id="cb-secret">apiVersion: secrets-store.csi.x-k8s.io/v1
+kind: SecretProviderClass
+metadata:
+  name: payments-api-secrets
+  namespace: tenant-payments-prod
+spec:
+  provider: gcp
+  parameters:
+    secrets: |
+      - resourceName: "projects/acme-platform-prod/secrets/payments-db-password/versions/latest"
+        path: "db-password"</code></pre>
+        </div>
+
+        <ul>
+          <li><strong>Images must come from your Artifact Registry path.</strong> Anything else is blocked by the admission policy.</li>
+          <li><strong>Production images need a Binary Authorization attestation.</strong> The shared build workflow attaches this automatically &mdash; hand-pushed images won't have one and will be rejected in <code>prod</code>.</li>
+          <li><strong>Quotas are real limits, not warnings.</strong> Once your namespace's CPU/memory/pod quota is hit, new pods stay <code>Pending</code> until something is freed or the quota is raised via the same PR flow as Step 2.</li>
+        </ul>
+
+        <div class="checklist" data-section="security">
+          <div class="task"><input type="checkbox" id="t-sec-1"><label for="t-sec-1">Containers run as non-root with an explicit <code>securityContext</code></label></div>
+          <div class="task"><input type="checkbox" id="t-sec-2"><label for="t-sec-2">Any cross-namespace traffic has an explicit <code>NetworkPolicy</code></label></div>
+          <div class="task"><input type="checkbox" id="t-sec-3"><label for="t-sec-3">All secrets sourced from Secret Manager, none inlined in YAML</label></div>
+        </div>
+      </section>
+
+      <!-- 09 GO LIVE -->
+      <section class="step" id="golive">
+        <div class="step-head"><span class="num">09</span><h2>Go-live checklist</h2></div>
+        <p class="step-sub">The gates the platform team expects cleared before a prod promotion PR gets approved.</p>
+
+        <div class="checklist" data-section="golive">
+          <div class="task"><input type="checkbox" id="t-go-1"><label for="t-go-1">Namespace request merged for all required environments</label></div>
+          <div class="task"><input type="checkbox" id="t-go-2"><label for="t-go-2">Workload healthy in <code>dev</code> for at least 48 hours</label></div>
+          <div class="task"><input type="checkbox" id="t-go-3"><label for="t-go-3">Soak in <code>staging</code> completed with no unexplained restarts</label></div>
+          <div class="task"><input type="checkbox" id="t-go-4"><label for="t-go-4"><code>PodDisruptionBudget</code> configured, minimum 2 replicas</label></div>
+          <div class="task"><input type="checkbox" id="t-go-5"><label for="t-go-5">At least one alert live and routed to your on-call Slack channel</label></div>
+          <div class="task"><input type="checkbox" id="t-go-6"><label for="t-go-6">Secrets confirmed in Secret Manager, not in any manifest</label></div>
+          <div class="task"><input type="checkbox" id="t-go-7"><label for="t-go-7">NetworkPolicy reviewed for anything beyond default-deny</label></div>
+          <div class="task"><input type="checkbox" id="t-go-8"><label for="t-go-8">On-call runbook written and linked from the service's dashboard</label></div>
+          <div class="task"><input type="checkbox" id="t-go-9"><label for="t-go-9">Prod promotion PR opened and approved by the platform team</label></div>
+        </div>
+
+        <div class="callout info">
+          <span class="tag">REVIEW</span>
+          <span>The platform team reviews the promotion PR, not your application code &mdash; they're checking the boxes above, not your business logic.</span>
+        </div>
+      </section>
+
+      <!-- 10 TROUBLESHOOTING -->
+      <section class="step" id="troubleshooting">
+        <div class="step-head"><span class="num">10</span><h2>Troubleshooting</h2></div>
+        <p class="step-sub">The failures nearly every tenant hits once, in the order they tend to show up.</p>
+
+        <table>
+          <thead><tr><th>Symptom</th><th>Likely cause</th><th>Fix</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>Forbidden</code> right after namespace creation</td>
+              <td>RBAC hasn't propagated yet</td>
+              <td>Wait 1&ndash;2 minutes and retry; escalate only if it persists past 15 minutes</td>
+            </tr>
+            <tr>
+              <td>Pod stuck <code>Pending</code></td>
+              <td>Namespace <code>ResourceQuota</code> exhausted</td>
+              <td><code>kubectl describe resourcequota -n &lt;ns&gt;</code>; free capacity or raise quota via a tenant-file PR</td>
+            </tr>
+            <tr>
+              <td><code>ImagePullBackOff</code></td>
+              <td>Image outside your Artifact Registry path, or missing Workload Identity binding</td>
+              <td>Confirm the image path and that the pulling service account has <code>artifactregistry.reader</code></td>
+            </tr>
+            <tr>
+              <td>Pod rejected at admission</td>
+              <td>Missing resource requests/limits, or a disallowed <code>securityContext</code></td>
+              <td>Add explicit requests/limits and a non-root security context</td>
+            </tr>
+            <tr>
+              <td><code>HTTPRoute</code> returns 404</td>
+              <td>Hostname mismatch or route not yet reconciled</td>
+              <td>Confirm the hostname matches exactly and check <code>kubectl describe httproute</code> for reconciliation errors</td>
+            </tr>
+            <tr>
+              <td>Prod deploy blocked</td>
+              <td>Image missing a Binary Authorization attestation</td>
+              <td>Rebuild through the shared build workflow rather than pushing the image directly</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- 11 SUPPORT -->
+      <section class="step" id="support">
+        <div class="step-head"><span class="num">11</span><h2>Support &amp; escalation</h2></div>
+        <p class="step-sub">Where to go when this guide doesn't cover it.</p>
+
+        <div class="grid-2">
+          <div class="mini-card">
+            <h4>General questions</h4>
+            <p><span class="pill">#platform-gke-support</span><br>Response target: same business day.</p>
+          </div>
+          <div class="mini-card">
+            <h4>Production incidents</h4>
+            <p><span class="pill">#platform-incidents</span><br>Page the on-call platform engineer for anything customer-impacting.</p>
+          </div>
+          <div class="mini-card">
+            <h4>Office hours</h4>
+            <p>Tuesdays &amp; Thursdays, 10:00&ndash;11:00 &mdash; drop-in for onboarding or design questions, no ticket needed.</p>
+          </div>
+          <div class="mini-card">
+            <h4>Full reference docs</h4>
+            <p><code>docs.internal.acme.com/platform/gke</code> &mdash; deeper detail on quotas, policy exceptions, and multi-region setups.</p>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <footer class="page-end">
+      Shared GKE Platform &middot; Tenant Onboarding Guide &middot; maintained by Platform Engineering
+    </footer>
+  </main>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var STORAGE_KEY = "gke-onboarding-progress-v1";
+
+  function loadState(){
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch(e){ return {}; }
+  }
+  function saveState(state){
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e){}
+  }
+
+  var state = loadState();
+  var checkboxes = Array.prototype.slice.call(document.querySelectorAll('.task input[type=checkbox]'));
+
+  function sectionOf(el){
+    var section = el.closest('section.step');
+    return section ? section.id : null;
+  }
+
+  function updateSectionChecks(){
+    var sections = {};
+    checkboxes.forEach(function(cb){
+      var s = sectionOf(cb);
+      if(!s) return;
+      if(!sections[s]) sections[s] = { total:0, done:0 };
+      sections[s].total++;
+      if(cb.checked) sections[s].done++;
+    });
+    document.querySelectorAll('.navlist .check[data-section]').forEach(function(dot){
+      var s = dot.getAttribute('data-section');
+      var info = sections[s];
+      if(info && info.total > 0 && info.done === info.total){
+        dot.classList.add('done');
+      } else {
+        dot.classList.remove('done');
+      }
+    });
+  }
+
+  function updateProgress(){
+    var total = checkboxes.length;
+    var done = checkboxes.filter(function(cb){ return cb.checked; }).length;
+    var pct = total ? Math.round((done/total)*100) : 0;
+    document.getElementById('progress-fill').style.width = pct + '%';
+    document.getElementById('progress-value').textContent = pct + '%';
+    document.getElementById('progress-count').textContent = done + ' of ' + total + ' tasks complete';
+    updateSectionChecks();
+  }
+
+  checkboxes.forEach(function(cb){
+    if (state[cb.id]) { cb.checked = true; }
+    cb.closest('.task').classList.toggle('checked', cb.checked);
+    cb.addEventListener('change', function(){
+      state[cb.id] = cb.checked;
+      saveState(state);
+      cb.closest('.task').classList.toggle('checked', cb.checked);
+      updateProgress();
+    });
+  });
+  updateProgress();
+
+  // copy-to-clipboard
+  document.querySelectorAll('.copy-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var targetId = btn.getAttribute('data-copy-target');
+      var codeEl = document.getElementById(targetId);
+      if(!codeEl) return;
+      var text = codeEl.innerText;
+      var done = function(){
+        var original = btn.textContent;
+        btn.textContent = 'Copied';
+        setTimeout(function(){ btn.textContent = original; }, 1400);
+      };
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(done).catch(function(){});
+        } else {
+          var ta = document.createElement('textarea');
+          ta.value = text;
+          ta.style.position = 'fixed';
+          ta.style.opacity = '0';
+          document.body.appendChild(ta);
+          ta.select();
+          try { document.execCommand('copy'); done(); } catch(e){}
+          document.body.removeChild(ta);
+        }
+      } catch(e){}
+    });
+  });
+
+  // active-section highlighting
+  var navLinks = Array.prototype.slice.call(document.querySelectorAll('#navlist a'));
+  var sectionsEls = Array.prototype.slice.call(document.querySelectorAll('section.step'));
+  if ('IntersectionObserver' in window && sectionsEls.length){
+    var observer = new IntersectionObserver(function(entries){
+      entries.forEach(function(entry){
+        var link = navLinks.find(function(a){ return a.getAttribute('href') === '#' + entry.target.id; });
+        if(!link) return;
+        if(entry.isIntersecting){
+          navLinks.forEach(function(a){ a.classList.remove('active'); });
+          link.classList.add('active');
+        }
+      });
+    }, { rootMargin: '-15% 0px -70% 0px', threshold: 0 });
+    sectionsEls.forEach(function(s){ observer.observe(s); });
+  }
+
+  // mobile nav select
+  var mobileNav = document.getElementById('mobile-nav');
+  if (mobileNav){
+    mobileNav.addEventListener('change', function(){
+      var target = document.querySelector(mobileNav.value);
+      if(target){ target.scrollIntoView({ behavior: 'smooth' }); }
+    });
+  }
+})();
+</script>
+</body>
+</html>
